@@ -1,0 +1,7 @@
+# Keil build output
+MDK-ARM/ITM_Demo/
+
+# Per-user IDE and debug-probe state
+MDK-ARM/*.uvguix.*
+MDK-ARM/JLinkLog.txt
+MDK-ARM/JLinkSettings.ini

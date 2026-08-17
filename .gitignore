@@ -1,2 +1,75 @@
-# 忽略
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
 
+# Editor and per-user workspace state
+.vscode/
+.idea/
+*.code-workspace
+*.suo
+*.user
+*.userprefs
+*~
+*.tmp
+*.bak
+*.Bak
+
+# Keil uVision per-user state
+*.uvguix.*
+*.uvgui.*
+JLinkLog.txt
+JLinkSettings.ini
+**/DebugConfig/*.dbgconf
+**/RTE/**/RTE_Components.h
+
+# Keil build products
+*.o
+*.obj
+*.d
+*.crf
+*.lst
+*.lnp
+*.axf
+*.elf
+*.map
+*.hex
+*.bin
+*.dep
+*.iex
+*.i
+*_2i
+*.l2p
+*.fed
+*.build_log.htm
+EventRecorderStub.scvd
+**/MDK-ARM/*/*.htm
+**/MDK-ARM/Objects/
+**/MDK-ARM/Listings/
+
+# STM32CubeIDE and other compiler output
+**/Debug/
+**/Release/
+*.su
+*.cyclo
+*.list
+*.size
+
+# Unused CMSIS bundles copied into the standalone course projects
+**/Drivers/CMSIS/DAP/
+**/Drivers/CMSIS/DSP/
+**/Drivers/CMSIS/NN/
+**/Drivers/CMSIS/Lib/
+**/Drivers/CMSIS/Core_A/
+**/Drivers/CMSIS/RTOS/
+**/Drivers/CMSIS/RTOS2/
+**/Drivers/CMSIS/Documentation/
+**/Drivers/CMSIS/docs/
+
+# Logs
+*.log
+
+# Duplicate source archives
+*.7z
+*.zip
+*.rar
