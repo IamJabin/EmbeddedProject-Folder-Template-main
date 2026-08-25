@@ -19,11 +19,16 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
+#include "queue.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include "bsp_key.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,6 +57,18 @@ const osThreadAttr_t defaultTask_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* USER CODE BEGIN PV */
+//****************** Thread_Func **************************//
+osThreadId_t key_TaskHandle;
+const osThreadAttr_t key_Task_attributes = {
+  .name = "key_Task",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+//****************** Thread_Func **************************//
+
+//****************** Queue_Handler ************************//
+QueueHandle_t key_queue;
+//****************** Queue_Handler ************************//
 
 /* USER CODE END PV */
 
@@ -78,6 +95,13 @@ void StartDefaultTask(void *argument);
      HAL_UART_Transmit(&huart1, (uint8_t *)&ch,1,0xFFFF);
      return ch;
  }
+
+ /**
+  * @brief key thread function
+  * @param void *argument
+  * @retval void
+ */
+void key_task_func(void *argument);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -144,6 +168,7 @@ int main(void)
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
+  key_TaskHandle = osThreadNew(key_task_func, NULL, &key_Task_attributes);
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_EVENTS */
@@ -282,6 +307,56 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+/**
+  * @brief key thread function
+  * @param void *argument
+  * @retval void
+  */
+void key_task_func(void *argument)
+{
+  // printf("key_task_func in\r\n");
+  key_status_t key_state        =          KEY_OK;
+  key_press_status_t key_value  = KEY_NOT_PRESSED;
+  key_queue = xQueueCreate(10, sizeof( uint32_t ));
+  uint32_t countr_tick = 0;
+
+  if (NULL == key_queue)
+  {
+    printf("key_queue create failed\r\n");
+  }
+  else
+  {
+    printf("key_queue create success\r\n");
+  }
+
+  for(;;)
+  {
+    countr_tick++;
+
+    key_state = key_scan( & key_value);
+
+    if(KEY_OK == key_state)
+    {
+      if(KEY_PRESSED == key_value)
+      {
+        printf("key pressed\r\n");
+        if(pdTRUE == xQueueSend(key_queue, &countr_tick, 0))
+        {
+          printf("key_queue send success\r\n");
+        }
+        else
+        {
+          printf("key_queue send failed\r\n");
+        }
+      }
+    }
+    else
+    {
+      printf("have not key\r\n");
+    }
+    vTaskDelay(pdMS_TO_TICKS(1000));
+  }
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -297,26 +372,20 @@ void StartDefaultTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    printf("Hellow Eternal Chip\r\n");
-    //1.先读取按键（PA0)的GPIO的电平，如果电平是高电平，则说明，按键没有被按下。
-    if(HAL_GPIO_ReadPin(Key_GPIO_Port, Key_Pin) == GPIO_PIN_SET)
+    if(NULL != key_queue)
     {
-        //什么都不做
-    }
-    //2.如果按键（PA0)的电平为低，则说明按键被按下了。
-    if(HAL_GPIO_ReadPin(Key_GPIO_Port, Key_Pin) == GPIO_PIN_RESET)
-    {
-        //2.1 LED亮起
-        HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-        //2.2 延时500ms
-        HAL_Delay(500);
-        //2.3 LED熄灭
-        HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-        //2.4 延时500ms
-        HAL_Delay(500);
+      uint32_t countr_tick = 0;
+      if(pdTRUE == xQueueReceive(key_queue, &countr_tick, 0))
+      {
+        printf("key_queue receive success, countr_tick = %d\r\n", countr_tick);
+      }
+      else
+      {
+        printf("key_queue have not receive\r\n");
+      }
     }
     
-    osDelay(1);
+    vTaskDelay(pdMS_TO_TICKS(1000));
   }
   /* USER CODE END 5 */
 }
