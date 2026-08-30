@@ -28,6 +28,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include "bsp_key.h"
+#include "bsp_led.h"
 
 /* USER CODE END Includes */
 
@@ -58,16 +59,13 @@ const osThreadAttr_t defaultTask_attributes = {
 };
 /* USER CODE BEGIN PV */
 //****************** Thread_Func **************************//
-osThreadId_t key_TaskHandle;
-const osThreadAttr_t key_Task_attributes = {
-  .name = "key_Task",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
-};
+extern osThreadId_t key_TaskHandle;
+extern const osThreadAttr_t key_Task_attributes;
+extern QueueHandle_t key_queue;
 //****************** Thread_Func **************************//
 
 //****************** Queue_Handler ************************//
-QueueHandle_t key_queue;
+
 //****************** Queue_Handler ************************//
 
 /* USER CODE END PV */
@@ -96,12 +94,6 @@ void StartDefaultTask(void *argument);
      return ch;
  }
 
- /**
-  * @brief key thread function
-  * @param void *argument
-  * @retval void
- */
-void key_task_func(void *argument);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -168,7 +160,8 @@ int main(void)
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
-  key_TaskHandle = osThreadNew(key_task_func, NULL, &key_Task_attributes);
+  key_thread_init();
+  led_thread_init();
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_EVENTS */
@@ -276,7 +269,6 @@ static void MX_USART1_UART_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
 /* USER CODE BEGIN MX_GPIO_Init_1 */
 /* USER CODE END MX_GPIO_Init_1 */
 
@@ -286,20 +278,12 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : LED_Pin */
-  GPIO_InitStruct.Pin = LED_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
+  led_gpio_init();
 
   /*Configure GPIO pin : Key_Pin */
-  GPIO_InitStruct.Pin = Key_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(Key_GPIO_Port, &GPIO_InitStruct);
+  key_gpio_init();
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
@@ -307,56 +291,7 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-/**
-  * @brief key thread function
-  * @param void *argument
-  * @retval void
-  */
-void key_task_func(void *argument)
-{
-  // printf("key_task_func in\r\n");
-  key_status_t key_state        =          KEY_OK;
-  key_press_status_t key_value  = KEY_NOT_PRESSED;
-  key_queue = xQueueCreate(10, sizeof( uint32_t ));
-  uint32_t countr_tick = 0;
 
-  if (NULL == key_queue)
-  {
-    printf("key_queue create failed\r\n");
-  }
-  else
-  {
-    printf("key_queue create success\r\n");
-  }
-
-  for(;;)
-  {
-    countr_tick++;
-
-    key_state = key_scan( & key_value);
-
-    if(KEY_OK == key_state)
-    {
-      if(KEY_PRESSED == key_value)
-      {
-        printf("key pressed\r\n");
-        if(pdTRUE == xQueueSend(key_queue, &countr_tick, 0))
-        {
-          printf("key_queue send success\r\n");
-        }
-        else
-        {
-          printf("key_queue send failed\r\n");
-        }
-      }
-    }
-    else
-    {
-      printf("have not key\r\n");
-    }
-    vTaskDelay(pdMS_TO_TICKS(1000));
-  }
-}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -378,10 +313,27 @@ void StartDefaultTask(void *argument)
       if(pdTRUE == xQueueReceive(key_queue, &countr_tick, 0))
       {
         printf("key_queue receive success, countr_tick = %d\r\n", countr_tick);
+        //按下按键切换一次led的状态，将状态发送到led_queue中
+        if(NULL != led_queue)
+        {
+          static led_light_status_t led_status = LED_OFF;
+          static uint32_t count = 0;
+
+          count++;
+          led_status = (led_light_status_t)(count % 3);
+          if(pdTRUE != xQueueSend(led_queue, &led_status, 0))
+          {
+            printf("led_queue send failed\r\n");
+          }
+        }
+        else
+        {
+          printf("%s-%d, led_queue is NULL\r\n", __FUNCTION__, __LINE__);
+        }
       }
       else
       {
-        printf("key_queue have not receive\r\n");
+        // printf("key_queue have not receive\r\n");
       }
     }
     

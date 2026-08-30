@@ -34,9 +34,19 @@
 #include "main.h"
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_gpio.h"
+
 //******************************** Includes *********************************//
+#include "cmsis_os.h"
+#include "FreeRTOS.h"
+#include "queue.h"
+
 
 //******************************** Defines **********************************//
+#define Key_Pin       GPIO_PIN_0
+#define Key_GPIO_Port GPIOA
+
+extern QueueHandle_t key_queue;
+
 /*  函数返回状态枚举                    */
 typedef enum
 {
@@ -59,8 +69,10 @@ typedef enum
 
 //******************************** Declaring ********************************//
 
+key_status_t key_gpio_init(void);
+key_status_t key_thread_init(void);
 key_status_t key_scan(key_press_status_t * key_value);
-
+extern void key_task_func(void *argument);
 
 //******************************** Declaring ********************************//
 
