@@ -309,21 +309,33 @@ void StartDefaultTask(void *argument)
   {
     if(NULL != key_queue)
     {
-      uint32_t countr_tick = 0;
-      if(pdTRUE == xQueueReceive(key_queue, &countr_tick, 0))
+      key_press_status_t  key_value = KEY_NOT_PRESSED;
+      if(pdTRUE == xQueueReceive(key_queue, &key_value, 0))
       {
-        printf("key_queue receive success, countr_tick = %d\r\n", countr_tick);
+        printf("key_queue receive success, key_value = %d, tick: %lu\r\n", 
+                                          key_value, xTaskGetTickCount());
         //按下按键切换一次led的状态，将状态发送到led_queue中
         if(NULL != led_queue)
         {
           static led_light_status_t led_status = LED_OFF;
-          static uint32_t count = 0;
 
-          count++;
-          led_status = (led_light_status_t)(count % 3);
-          if(pdTRUE != xQueueSend(led_queue, &led_status, 0))
+          if(KEY_SHORT_PRESSED == key_value)
           {
-            printf("led_queue send failed\r\n");
+            led_status = LED_TOGGLE;
+          }
+          else if(KEY_LONG_PRESSED == key_value)
+          {
+            led_status = LED_TOGGLE_3_TIMES;
+          }
+
+          if(pdTRUE != xQueueSend(led_queue, &led_status, 5000))
+          {
+            printf("led_queue send failed, tick: %lu\r\n", xTaskGetTickCount());
+          }
+          else
+          {
+            printf("led_queue send success, led_status = %d, tick: %lu\r\n", 
+                                          led_status, xTaskGetTickCount());
           }
         }
         else

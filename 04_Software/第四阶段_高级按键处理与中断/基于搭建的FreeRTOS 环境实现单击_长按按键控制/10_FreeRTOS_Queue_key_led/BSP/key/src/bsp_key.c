@@ -3,12 +3,10 @@
  *
  * All Rights Reserved.
  *
- * @file key.c
+ * @file bsp_key.c
  *
  * @par dependencies
  * - bsp_key.h
- * - stdio.h
- * - stdint.h
  *
  * @author Bin
  *
@@ -77,7 +75,6 @@ void key_task_func(void *argument)
   key_status_t key_state        =          KEY_OK;
   key_press_status_t key_value  = KEY_NOT_PRESSED;
   key_queue = xQueueCreate(10, sizeof( uint32_t ));
-  uint32_t countr_tick = 0;
 
   if (NULL == key_queue)
   {
@@ -92,23 +89,19 @@ void key_task_func(void *argument)
 
   for(;;)
   {
-    countr_tick++;
-
-    key_state = key_scan( & key_value);
+    key_state = key_short_long_scan(&key_value, 2000); // 2000ms长按阈值
 
     if(KEY_OK == key_state)
     {
-      if(KEY_PRESSED == key_value)
+      printf("key pressed\r\n");
+      if(pdTRUE == xQueueSend(key_queue, &key_value, 5000))
       {
-        printf("key pressed\r\n");
-        if(pdTRUE == xQueueSend(key_queue, &countr_tick, 0))
-        {
-          printf("key_queue send success\r\n");
-        }
-        else
-        {
-          printf("key_queue send failed\r\n");
-        }
+        printf("key_queue send success key_value: %d, tick: %lu\r\n", 
+                                     key_value, xTaskGetTickCount());
+      }
+      else
+      {
+        printf("key_queue send failed\r\n");
       }
     }
     else
@@ -121,7 +114,6 @@ void key_task_func(void *argument)
 
 key_status_t key_scan(key_press_status_t * key_value)
 {
-    uint32_t counter = 0;
     key_press_status_t key_value_temp = KEY_NOT_PRESSED;
 
     if (key_value == NULL)
@@ -129,17 +121,59 @@ key_status_t key_scan(key_press_status_t * key_value)
         return KEY_ERRORPARAMETER;
     }
 
-    while (counter < 1000)
+    if(HAL_GPIO_ReadPin(Key_GPIO_Port, Key_Pin) == GPIO_PIN_RESET)
     {
-        if(HAL_GPIO_ReadPin(Key_GPIO_Port, Key_Pin) == GPIO_PIN_RESET)
+        key_value_temp = KEY_PRESSED;
+        *key_value = key_value_temp;
+        return KEY_OK;
+    }
+
+    *key_value = key_value_temp;
+
+    return KEY_ERRORTIMEOUT;
+}
+
+//识别按键的长按和短按，长按还是短按临界值靠调用者传入
+key_status_t key_short_long_scan(key_press_status_t * key_value, 
+                                 uint32_t long_press_threshold_ms)
+{
+    uint32_t                  counter   =                 0;
+    key_press_status_t key_value_temp   =   KEY_NOT_PRESSED;
+    key_status_t            key_state   =         KEY_ERROR;
+
+    if (key_value == NULL)
+    {
+        return KEY_ERRORPARAMETER;
+    }
+
+    key_state = key_scan( & key_value_temp);
+
+    if (key_state == KEY_OK && key_value_temp == KEY_PRESSED)
+    {
+        //按键按下，开始计数
+        while (key_scan( & key_value_temp) == KEY_OK && key_value_temp == KEY_PRESSED)
         {
-            key_value_temp = KEY_PRESSED;
-            *key_value = key_value_temp;
+            counter++;
+            osDelay(10); //延时10ms
+        }
+
+        if (counter >= long_press_threshold_ms / 10) //长按阈值为指定毫秒（long_press_threshold_ms / 10ms）
+        {
+            *key_value = KEY_LONG_PRESSED;
             return KEY_OK;
         }
-        counter++;
+        else if (counter > 0) //短按阈值为0.1秒（10 * 10ms）
+        {
+            *key_value = KEY_SHORT_PRESSED;
+            return KEY_OK;
+        }
     }
-    *key_value = key_value_temp;
+    else
+    {
+      /* code */
+    }
+    
+
 
     return KEY_ERRORTIMEOUT;
 }

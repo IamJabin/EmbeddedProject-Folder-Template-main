@@ -61,7 +61,8 @@ typedef enum
 {
   LED_OFF               = 0,           /* LED is off */
   LED_ON                = 1,           /* LED is on */
-  LED_TOGGLE            = 2            /* LED is toggled */
+  LED_TOGGLE            = 2,            /* LED is toggled */
+  LED_TOGGLE_3_TIMES   = 3            /* LED is toggled 3 times */
 } led_light_status_t;
 //******************************** Defines **********************************//
 

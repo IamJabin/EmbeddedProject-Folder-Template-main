@@ -32,7 +32,7 @@ static osThreadId_t led_TaskHandle = NULL;
 static const osThreadAttr_t led_Task_attributes = {
   .name = "led_Task",
   .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityHigh,
 };
 
 led_status_t led_gpio_init(void)
@@ -54,7 +54,7 @@ led_status_t led_gpio_init(void)
 
 /**
   * @brief led control function
-  * @param led_value: LED_OFF, LED_ON, LED_TOGGLE
+  * @param led_value: LED_OFF, LED_ON, LED_TOGGLE, LED_TOGGLE_3_times
   * @retval led_status_t: LED_OK, LED_ERRORPARAMETER
   */
 led_status_t led_control(led_light_status_t led_value)
@@ -62,13 +62,30 @@ led_status_t led_control(led_light_status_t led_value)
     switch (led_value)
     {
         case LED_OFF:
+            printf("led_control: LED_OFF, tick: %lu\r\n", 
+                                    xTaskGetTickCount());
             HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
             break;
         case LED_ON:
+            printf("led_control: LED_ON, tick: %lu\r\n", 
+                                   xTaskGetTickCount());
             HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
             break;
         case LED_TOGGLE:
+            printf("led_control: LED_TOGGLE, tick: %lu\r\n", 
+                                   xTaskGetTickCount());
             HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+            break;
+        case LED_TOGGLE_3_TIMES:
+            printf("led_control: LED_TOGGLE_3_TIMES, tick: %lu\r\n", 
+                                   xTaskGetTickCount());
+            for (int i = 0; i < 3; i++)
+            {
+                HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+                osDelay(200); // Delay for 200 ms
+                HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+                osDelay(200); // Delay for 200 ms
+            }
             break;
         default:
             return LED_ERRORPARAMETER; // Invalid parameter
@@ -106,7 +123,8 @@ void led_task_func(void *argument)
     {
       if(pdTRUE == xQueueReceive(led_queue, &led_value, 0))
       {
-        printf("led_queue receive success, led_value = %d\r\n", led_value);
+        printf("led_queue receive success, led_value = %d, tick: %lu\r\n", 
+                                          led_value, xTaskGetTickCount());
         led_state = led_control(led_value);
         if(LED_OK != led_state)
         {

@@ -64,6 +64,9 @@ typedef enum
 {
   KEY_PRESSED           = 0,           /* Operation completed successfully.  */
   KEY_NOT_PRESSED       = 1,           /* Run-time error without case matched*/
+  KEY_SHORT_PRESSED     = 2,           /* Operation failed with timeout      */
+  KEY_LONG_PRESSED      = 3,           /* Resource not available.            */
+  KEY_RESERVED_PRESSED  = 0x7FFFFFFF   /* Reserved                           */
 } key_press_status_t;
 //******************************** Defines **********************************//
 
@@ -72,6 +75,8 @@ typedef enum
 key_status_t key_gpio_init(void);
 key_status_t key_thread_init(void);
 key_status_t key_scan(key_press_status_t * key_value);
+key_status_t key_short_long_scan(key_press_status_t * key_value, 
+                                 uint32_t long_press_threshold_ms);
 extern void key_task_func(void *argument);
 
 //******************************** Declaring ********************************//
