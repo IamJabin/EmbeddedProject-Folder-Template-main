@@ -121,7 +121,7 @@ void led_task_func(void *argument)
     //获取led_queue中的数据，然后放入到led_control函数中，控制led灯的状态
     if(NULL != led_queue)
     {
-      if(pdTRUE == xQueueReceive(led_queue, &led_value, 0))
+      if(pdTRUE == xQueueReceive(led_queue, &led_value, portMAX_DELAY))
       {
         printf("led_queue receive success, led_value = %d, tick: %lu\r\n", 
                                           led_value, xTaskGetTickCount());
@@ -140,7 +140,7 @@ void led_task_func(void *argument)
     {
       printf("%s-%d, led_queue is NULL\r\n", __FUNCTION__, __LINE__);
     }
-    vTaskDelay(pdMS_TO_TICKS(100));
+    // vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
 

@@ -94,7 +94,7 @@ void key_task_func(void *argument)
     if(KEY_OK == key_state)
     {
       printf("key pressed\r\n");
-      if(pdTRUE == xQueueSend(key_queue, &key_value, 5000))
+      if(pdTRUE == xQueueSend(key_queue, &key_value, pdMS_TO_TICKS(5000)))
       {
         printf("key_queue send success key_value: %d, tick: %lu\r\n", 
                                      key_value, xTaskGetTickCount());

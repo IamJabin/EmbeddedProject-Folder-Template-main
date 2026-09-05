@@ -328,7 +328,7 @@ void StartDefaultTask(void *argument)
             led_status = LED_TOGGLE_3_TIMES;
           }
 
-          if(pdTRUE != xQueueSend(led_queue, &led_status, 5000))
+          if(pdTRUE != xQueueSend(led_queue, &led_status, pdMS_TO_TICKS(5000)))
           {
             printf("led_queue send failed, tick: %lu\r\n", xTaskGetTickCount());
           }
