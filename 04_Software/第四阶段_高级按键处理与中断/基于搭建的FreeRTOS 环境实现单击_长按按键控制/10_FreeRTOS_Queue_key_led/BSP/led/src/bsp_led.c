@@ -26,7 +26,16 @@
 
 #include "bsp_led.h"
 
-extern QueueHandle_t led_queue = NULL;
+#define LED_DEBUG_ENABLE 0
+#define LED_BLINK_INTERVAL_MS 200U
+
+#if LED_DEBUG_ENABLE
+#define LED_LOG(...) printf(__VA_ARGS__)
+#else
+#define LED_LOG(...) ((void)0)
+#endif
+
+QueueHandle_t led_queue = NULL;
 static osThreadId_t led_TaskHandle = NULL;
 
 static const osThreadAttr_t led_Task_attributes = {
@@ -62,29 +71,29 @@ led_status_t led_control(led_light_status_t led_value)
     switch (led_value)
     {
         case LED_OFF:
-            printf("led_control: LED_OFF, tick: %lu\r\n", 
-                                    xTaskGetTickCount());
+            LED_LOG("led_control: LED_OFF, tick: %lu\r\n", 
+                      (unsigned long)xTaskGetTickCount());
             HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
             break;
         case LED_ON:
-            printf("led_control: LED_ON, tick: %lu\r\n", 
-                                   xTaskGetTickCount());
+            LED_LOG("led_control: LED_ON, tick: %lu\r\n", 
+                     (unsigned long)xTaskGetTickCount());
             HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
             break;
         case LED_TOGGLE:
-            printf("led_control: LED_TOGGLE, tick: %lu\r\n", 
-                                   xTaskGetTickCount());
+            LED_LOG("led_control: LED_TOGGLE, tick: %lu\r\n", 
+                         (unsigned long)xTaskGetTickCount());
             HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
             break;
         case LED_TOGGLE_3_TIMES:
-            printf("led_control: LED_TOGGLE_3_TIMES, tick: %lu\r\n", 
-                                   xTaskGetTickCount());
+            LED_LOG("led_control: LED_TOGGLE_3_TIMES, tick: %lu\r\n", 
+                                 (unsigned long)xTaskGetTickCount());
             for (int i = 0; i < 3; i++)
             {
                 HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-                osDelay(200); // Delay for 200 ms
+                vTaskDelay(pdMS_TO_TICKS(LED_BLINK_INTERVAL_MS));; // Delay for 200 ms
                 HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-                osDelay(200); // Delay for 200 ms
+                vTaskDelay(pdMS_TO_TICKS(LED_BLINK_INTERVAL_MS));; // Delay for 200 ms
             }
             break;
         default:
@@ -100,20 +109,20 @@ led_status_t led_control(led_light_status_t led_value)
   */
 void led_task_func(void *argument)
 {
-  // printf("led_task_func in\r\n");
+  // LED_LOG("led_task_func in\r\n");
   led_status_t led_state        =          LED_OK;
   led_light_status_t led_value  =         LED_OFF;
-  led_queue = xQueueCreate(10, sizeof( uint32_t ));
+  led_queue = xQueueCreate(10, sizeof( led_light_status_t ));
 
   if (NULL == led_queue)
   {
-    printf("led_queue create failed\r\n");
+    LED_LOG("led_queue create failed\r\n");
     // Handle the error, e.g., return or enter an error state
     vTaskDelete(NULL); // Delete the current task to prevent further execution
   }
   else
   {
-    printf("led_queue create success\r\n");
+    LED_LOG("led_queue create success\r\n");
   }
 
   for(;;)
@@ -123,22 +132,22 @@ void led_task_func(void *argument)
     {
       if(pdTRUE == xQueueReceive(led_queue, &led_value, portMAX_DELAY))
       {
-        printf("led_queue receive success, led_value = %d, tick: %lu\r\n", 
-                                          led_value, xTaskGetTickCount());
+        LED_LOG("led_queue receive success, led_value = %d, tick: %lu\r\n", 
+                            led_value, (unsigned long)xTaskGetTickCount());
         led_state = led_control(led_value);
         if(LED_OK != led_state)
         {
-          printf("led_control failed\r\n");
+          LED_LOG("led_control failed\r\n");
         }
       }
       else
       {
-        // printf("led_queue have not receive\r\n");
+        // LED_LOG("led_queue have not receive\r\n");
       }
     }
     else
     {
-      printf("%s-%d, led_queue is NULL\r\n", __FUNCTION__, __LINE__);
+      LED_LOG("%s-%d, led_queue is NULL\r\n", __FUNCTION__, __LINE__);
     }
     // vTaskDelay(pdMS_TO_TICKS(100));
   }
@@ -150,12 +159,12 @@ led_status_t led_thread_init(void)
     led_TaskHandle = osThreadNew(led_task_func, NULL, &led_Task_attributes);
     if (led_TaskHandle == NULL)
     {
-        printf("LED thread create failed\r\n");
+        LED_LOG("LED thread create failed\r\n");
         return LED_ERROR;
     }
     else
     {
-        printf("LED thread create success\r\n");
+        LED_LOG("LED thread create success\r\n");
         return LED_OK;
     }
 }
