@@ -33,7 +33,7 @@ osThreadId_t              led_TaskHandle;
 const osThreadAttr_t led_Task_attributes = {
   .name = "led_Task",
   .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityHigh,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 //*********************Thread_Func **********************//
 

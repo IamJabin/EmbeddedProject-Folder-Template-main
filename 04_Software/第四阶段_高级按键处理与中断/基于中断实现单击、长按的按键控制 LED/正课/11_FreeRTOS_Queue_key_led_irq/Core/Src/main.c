@@ -19,13 +19,11 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
-#include "queue.h"
-
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
-#include "bsp_key.h"
+#include "bsp_key_irq.h"
 #include "bsp_led.h"
 
 /* USER CODE END Includes */
@@ -55,7 +53,6 @@ const osThreadAttr_t defaultTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-
 /* USER CODE BEGIN PV */
 
 
@@ -156,10 +153,9 @@ int main(void)
   /* creation of defaultTask */
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
-
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
-  //key_TaskHandle = osThreadNew(key_task_func, NULL, &key_Task_attributes);
+  key_TaskHandle = osThreadNew(key_task_func, NULL, &key_Task_attributes);
   led_TaskHandle = osThreadNew(led_task_func, NULL, &led_Task_attributes);
   /* USER CODE END RTOS_THREADS */
 
@@ -289,9 +285,13 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : Key_Pin */
   GPIO_InitStruct.Pin = Key_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(Key_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
@@ -308,10 +308,10 @@ static void MX_GPIO_Init(void)
   * @retval None
   */
 /* USER CODE END Header_StartDefaultTask */
-
 void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
+#if 0
     /*********************APP Task**********************************************/    
     /**     Variables (in stack)            */
     key_status_t ret_key_status      =             KEY_OK;
@@ -357,11 +357,175 @@ void StartDefaultTask(void *argument)
     HAL_Delay(100);
     osDelay(100);
   }
+#endif
+/* 等待按键任务创建队列 */
+    osDelay(500);
+
+/* Test #1：初始状态收到上升沿 */
+#if 0
+    key_press_event_t test_event =
+    {
+        .edge_type = RASING,
+        .trigger_tick = HAL_GetTick()
+    };
+
+    if (NULL == inter_key_queue)
+    {
+        printf("inter_key_queue not created\r\n");
+    }
+    else if (pdTRUE == xQueueSendToFront(inter_key_queue,
+                                        &test_event, 0))
+    {
+        printf("Test #1 send successfully at [%d] tick \r\n", HAL_GetTick());
+    }
+    else
+    {
+        printf("Test #1 send failed at [%d] tick \r\n", HAL_GetTick());
+    }
+#endif
+
+#if 0
+    /* Test #2：模拟按下，然后松开 */
+    if (NULL == inter_key_queue)
+    {
+        printf("inter_key_queue not created\r\n");
+    }
+    else
+    {
+        /* 第一个事件：按下 */
+        key_press_event_t test_event_1 =
+        {
+            .edge_type = FAILING,
+            .trigger_tick = HAL_GetTick()
+        };
+
+        if (pdTRUE == xQueueSendToBack(inter_key_queue,
+                                        &test_event_1, 0))
+        {
+            printf("Test #2 falling send successfully\r\n");
+        }
+        else
+        {
+            printf("Test #2 falling send failed\r\n");
+        }
+
+        HAL_Delay(20);
+
+        /* 第二个事件：松开，在这里才记录松开时间 */
+        key_press_event_t test_event_2 =
+        {
+            .edge_type = RASING,
+            .trigger_tick = HAL_GetTick()
+        };
+
+        if (pdTRUE == xQueueSendToBack(inter_key_queue,
+                                        &test_event_2, 0))
+        {
+            printf("Test #2 rising send successfully\r\n");
+        }
+        else
+        {
+            printf("Test #2 rising send failed\r\n");
+        }
+    }
+#endif
+
+#if 0
+    /* Test #3：模拟按下，然后松开 */
+    if (NULL == inter_key_queue)
+    {
+        printf("inter_key_queue not created\r\n");
+    }
+    else
+    {
+        /* 第一个事件：按下 */
+        key_press_event_t test_event_1 =
+        {
+            .edge_type = FAILING,
+            .trigger_tick = HAL_GetTick()
+        };
+
+        if (pdTRUE == xQueueSendToBack(inter_key_queue,
+                                        &test_event_1, 0))
+        {
+            printf("Test #3 falling send successfully\r\n");
+        }
+        else
+        {
+            printf("Test #3 falling send failed\r\n");
+        }
+
+        HAL_Delay(600);
+
+        /* 第二个事件：松开，在这里才记录松开时间 */
+        key_press_event_t test_event_2 =
+        {
+            .edge_type = RASING,
+            .trigger_tick = HAL_GetTick()
+        };
+
+        if (pdTRUE == xQueueSendToBack(inter_key_queue,
+                                        &test_event_2, 0))
+        {
+            printf("Test #3 rising send successfully\r\n");
+        }
+        else
+        {
+            printf("Test #3 rising send failed\r\n");
+        }
+    }
+#endif
+
+/* 测试消息只发送一次，后续保持任务运行 */
+    for (;;)
+    {
+        key_press_status_t key_result = KEY_NOT_PRESSED;
+
+        printf("APP task is living at [%d] tick\r\n", HAL_GetTick());
+
+        if ((NULL != key_queue) && (NULL != led_queue))
+        {
+            if (pdTRUE == xQueueReceive(key_queue, &key_result, 0))
+            {
+                led_operation_t led_action = LED_INITED_VALUE;
+
+                /* 将按键结果映射为 LED 动作。 */
+                if (KEY_SHORT_PRESSED == key_result)
+                {
+                    led_action = LED_TOGGLE;
+                }
+                else if (KEY_LONG_PRESSED == key_result)
+                {
+                    led_action = LED_BLINK_3_TIMES;
+                }
+
+                /* 有对应动作时，交给 LED 任务执行。 */
+                if (LED_INITED_VALUE != led_action)
+                {
+                    if (pdTRUE == xQueueSendToFront(led_queue,
+                                                  &led_action, 0))
+                    {
+                        printf("APP forward key [%d] to LED [%d] successfully\r\n",
+                              key_result, led_action);
+                    }
+                    else
+                    {
+                        printf("APP forward to LED failed\r\n");
+                    }
+                }
+                else
+                {
+                    printf("APP received unexpected key result [%d]\r\n",
+                          key_result);
+                }
+            }
+        }
+
+        osDelay(100);
+    }
     /*********************APP Task**********************************************/    
   /* USER CODE END 5 */
 }
-
-
 
 /**
   * @brief  Period elapsed callback in non blocking mode
